@@ -1,0 +1,577 @@
+using System.ComponentModel;
+
+namespace WinTetris
+{
+    public partial class Form1 : Form
+    {
+        private const int Rows = 30;
+        private const int Cols = 10;
+        private const int PieceSz = 5;
+        private const int InitialSpeed = 2000;
+        private const int MoveIndicator = 10;
+        private const int CountMax = 1000;
+        private const int ScoreAdd = 100;
+        private readonly int[,] gameboard = new int[Rows, Cols];
+        private readonly int[,,] pieces = {{{0, 0, 0, 0, 0 }, {1, 1, 1, 1, 1 }, {1, 1, 1, 1, 1 }, {1, 1, 1, 1, 1 }, {0, 0, 0, 0, 0}},
+                                           {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 1, 0, 0, 0}, {0, 1, 1, 1, 0}, {0, 0, 0, 0, 0}},
+                                           {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 1, 1, 0}, {0, 1, 1, 0, 0}, {0, 0, 0, 0, 0}},
+                                           {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 1, 1, 0, 0}, {0, 0, 1, 1, 0}, {0, 0, 0, 0, 0}},
+                                           {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 1, 1, 1, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}},
+                                           {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 1, 0}, {0, 1, 1, 1, 0}, {0, 0, 0, 0, 0}},
+                                           {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 1, 1, 1, 0}, {0, 0, 1, 0, 0}, {0, 0, 0, 0, 0}},
+                                           {{0, 0, 0, 0, 0}, {0, 1, 1, 0, 0}, {0, 1, 1, 0, 0}, {0, 1, 1, 0, 0}, {0, 0, 0, 0, 0}},
+                                           {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 1, 1, 1, 1}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}},
+                                           {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 1, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}}};
+        private readonly int[,] piece = new int[PieceSz, PieceSz];
+        private int score = 0, speed = InitialSpeed, count = 0, piecex, piecey, nextpiece;
+        private bool isbusy = false, isgameover = false;
+        private readonly System.Windows.Forms.Timer timer = new();
+        private Bitmap board = new(1, 1);
+        private Bitmap statusboard = new(1, 1);
+        private Bitmap infoboard = new(1, 1);
+        private readonly Panel backscreen;
+        private readonly PictureBox screen;
+        private readonly PictureBox info;
+        private readonly PictureBox status;
+        private readonly Font myfont = new("Arial", 15);
+        /// <summary>
+        /// Form1 is the default constructor for the main class, so it is the entry point.
+        /// </summary>
+        public Form1()
+        {
+            InitializeComponent(); //set up the main form
+            KeyDown += WT_KeyDown; //set key down event handler
+            Resize += WT_Resize; //set form resize event handler
+            Shown += WT_Shown; //set form shown event handler
+            FormClosing += WT_Closing; //set form closing event handler
+            backscreen = new() { BackColor = Color.FromArgb(32, 0, 0) }; //very dark red background
+            screen = new(); //make controls
+            info = new();
+            status = new();
+            ResizePBs(); //resize to get controls sizes and locations fixed
+            backscreen.Controls.Add(screen); //add screen to backscreen
+            Controls.Add(backscreen); //add controls to form
+            Controls.Add(info);
+            Controls.Add(status);
+        }
+        /// <summary>
+        /// This handler is called whenever the form is about to close.  It verifies with the user that they want to exit.  If they don't, it also offers to restart the game.
+        /// </summary>
+        private void WT_Closing(object? sender, FormClosingEventArgs e)
+        {
+            timer.Stop(); //stop the timer if it is running
+            if (MessageBox.Show("Exit?", "Quit", MessageBoxButtons.YesNo) == DialogResult.Yes) //if user agrees to exit
+            {
+                e.Cancel = false; //we don't want to cancel
+                return; //and we are done
+            }
+            isgameover = false; //game is not over now
+            e.Cancel = true; //we don't want to close
+            if (MessageBox.Show("Begin again?", "Restart?", MessageBoxButtons.YesNo) == DialogResult.Yes) //if user wants to restart
+                RestartGame(); //restart game
+            timer.Start(); //start the timer back up
+        }
+        /// <summary>
+        /// This handler is called when the form is first shown.  It simply sets up the timer.
+        /// </summary>
+        private void WT_Shown(object? sender, EventArgs e)
+        {
+            timer.Interval = 1; //timer interval set to 1 to do immediately, it will get reset to speed in the event handler
+            timer.Tick += WT_Time; //event handler for timer
+            timer.Start(); //start the timer
+        }
+        /// <summary>
+        /// This method sets the variables for a fresh start of the game.
+        /// </summary>
+        private void RestartGame()
+        {
+            timer.Stop(); //stop the timer
+            score = 0; //reset variables
+            speed = InitialSpeed;
+            count = 0;
+            for (int y = 0; y < Rows; y++) //reset the game board
+            {
+                for (int x = 0; x < Cols; x++)
+                {
+                    gameboard[y, x] = 0;
+                }
+            }
+            timer.Interval = 1; //set timer interval to 1 to do immediately
+            timer.Start(); //start the timer back up
+        }
+        /// <summary>
+        /// This handler is called by the timer and is responsible for all the "automatic" game logic.  
+        /// It also handles setting the speed on the timer it is attached to.
+        /// </summary>
+        private void WT_Time(object? sender, EventArgs e)
+        {
+            timer.Stop(); //stop the timer
+            if (IsStopped()) //if the piece is stopped
+                NewPiece(); //make a new piece
+            else //otherwise
+                MovePieceDown(); //move the piece down
+            DrawScreen(); //draw the screen
+            if (isgameover) //if game over
+            {
+                MessageBox.Show("Game Over!"); //tell the user
+                Close(); //close the window
+            }
+            else //otherwise
+            {
+                if (speed < 1) speed = 1; //if speed is less than 1, set it to 1
+                timer.Interval = speed; //set the timer interval
+                timer.Start(); //start the timer back up
+            }
+        }
+        /// <summary>
+        /// This method copies the piece from nextpiece and generates a new nextpiece.
+        /// </summary>
+        private void NewPiece()
+        {
+            Random r = new(); //make a new random number generator
+            ClearPiece(); //clear the piece from the game board
+            int pi = r.Next(10); //get a piece index randomly (0 - 9)
+            int pc = r.Next(9) + 1; //get a color for the piece (1 - 9)
+            for (int y = 0; y < PieceSz; y++) //for each spot in the piece
+                for (int x = 0; x < PieceSz; x++)
+                {
+                    piece[y, x] = 0; //set it to 0
+                    if (pieces[nextpiece, y, x] != 0) //if the nextpiece at this spot is not 0
+                        piece[y, x] = MoveIndicator + pc; //set the piece to 10 + piece color (the 10 indicates it is moving)
+                    if (gameboard[y, x + 3] != 0) //if the spot we are going to put the piece is not empty
+                        isgameover = true; //then set the flag that the game is over
+                }
+            piecex = 3; //position the piece
+            piecey = 0;
+            nextpiece = pi; //set the next piece according to piece index
+            AddPiece(); //add the piece to the game board
+        }
+        /// <summary>
+        /// This method will keep moving a piece down until it stops.
+        /// </summary>
+        private void DropPiece()
+        {
+            while (!IsStopped()) //if the piece is not stopped
+                MovePieceDown(); //move it down
+        }
+        /// <summary>
+        /// This method moves the piece left.
+        /// </summary>
+        private void MovePieceLeft() => MovePiece(-1, 0); //move piece left
+        /// <summary>
+        /// This method moves the piece right.
+        /// </summary>
+        private void MovePieceRight() => MovePiece(1, 0); //move piece right
+        /// <summary>
+        /// This method moves the piece down.  It also handles the count for reducing the delay thus increasing the speed.
+        /// </summary>
+        private void MovePieceDown()
+        {
+            count++; //increment count
+            if (count > CountMax) //if count is greater than 1000
+            {
+                count = 0; //reset count to 0
+                score += ScoreAdd; //add 100 to score
+                speed -= 25; //subtract 25 from speed
+            }
+            MovePiece(0, 1); //move piece down
+        }
+        /// <summary>
+        /// This method handles moving the piece.  It validates the move, checks for the piece hitting the bottom of the game board, and checks for lines filled.
+        /// </summary>
+        /// <param name="x"></param> Horizontal movement
+        /// <param name="y"></param> Vertical movement
+        private void MovePiece(int x, int y)
+        {
+            isbusy = true; //set busy flag
+            ClearPiece(); //clear piece from game board
+            if (IsMoveValid(x, 0)) //if move is valid
+            {
+                piecex += x; //move in x
+                piecey += y; //move in y
+            }
+            AddPiece(); //add piece back to game board
+            if (IsAtBottom()) //if piece is at the bottom of the game board
+                StopPiece(); //stop the piece there (glue it in place)
+            CheckLines(); //check for lines filled
+            isbusy = false; //reset busy flag
+        }
+        /// <summary>
+        /// This method checks if a movement would be valid (not going out of bounds or hitting something).
+        /// </summary>
+        /// <param name="deltax"></param> Horizontal movement
+        /// <param name="deltay"></param> Vertical movement
+        /// <returns></returns> true if move is valid, false otherwise
+        private bool IsMoveValid(int deltax, int deltay)
+        {
+            int x = piecex + deltax; //compute new position
+            int y = piecey + deltay;
+            for (int py = 0; py < PieceSz; py++) //for each part of piece
+            {
+                for (int px = 0; px < PieceSz; px++)
+                {
+                    if (piece[py, px] != 0) //if that part is not 0
+                    {
+                        int newx = x + px; //compute new position of this part
+                        int newy = y + py;
+                        if (newx < 0 || newx >= Cols) //if the new position of part is out of bounds
+                        {
+                            return false; //return false (no, move is not valid)
+                        }
+                        if (gameboard[newy, newx] != 0) //if there is something on the game board at that spot (collision)
+                        {
+                            return false; //return false (no, move is not valid)
+                        }
+                    }
+                }
+            }
+            return true; //return true (yes, move is valid)
+        }
+        /// <summary>
+        /// This method checks each line of the game board and if it is filled, it will remove the line.  It uses recursive logic to make sure it catches all filled lines.
+        /// </summary>
+        private void CheckLines()
+        {
+            for (int y = 0; y < Rows; y++) //for each row in the game board
+            {
+                int l = 0; //line counter
+                for (int x = 0; x < Cols; x++) //for each spot in the row
+                {
+                    if (gameboard[y, x] > 0 && gameboard[y, x] < MoveIndicator) //if the spot has something that is not moving
+                        l++; //add to line counter
+                }
+                if (l == 10) //if line counter is 10 (all spots in the row)
+                {
+                    RemoveLine(y); //remove the line
+                    CheckLines(); //check lines (again.  recursively)
+                    break; //get out of the loop
+                }
+            }
+        }
+        /// <summary>
+        /// This method removes a line from the game board.
+        /// </summary>
+        /// <param name="y"></param> The line to remove.
+        private void RemoveLine(int y)
+        {
+            for (int i = y; i >= 0; i--) //moving up
+            {
+                for (int x = 0; x < Cols; x++) //each spot per line
+                {
+                    if (i > 0) //if not the top line
+                        gameboard[i, x] = gameboard[i - 1, x]; //copy spot from line above
+                    else //otherwise (top line)
+                        gameboard[0, x] = 0; //set spot to 0 (blank)
+                }
+            }
+            score += ScoreAdd; //add 100 to score
+        }
+        /// <summary>
+        /// This method checks to see if the piece is at the bottom of the gameboard.
+        /// </summary>
+        /// <returns></returns> True if at the bottom, false otherwise.
+        private bool IsAtBottom()
+        {
+            for (int x = 0; x < Cols; x++) //for each column
+            {
+                if (gameboard[Rows - 1, x] >= MoveIndicator) //if there is a moving piece there
+                    return true; //return true (yes, piece is at the bottom)
+            }
+            return false; //return false (no, piece is not at the bottom)
+        }
+        /// <summary>
+        /// This method clears the piece from the game board.
+        /// </summary>
+        private void ClearPiece()
+        {
+            for (int y = 0; y < Rows; y++) //for each spot in game board
+                for (int x = 0; x < Cols; x++)
+                    if (gameboard[y, x] >= MoveIndicator) gameboard[y, x] = 0; //if there is a moving piece there, clear it
+        }
+        /// <summary>
+        /// This method adds the piece back onto the game board.  It also checks to see if the piece should stop and handles it appropriately.
+        /// </summary>
+        private void AddPiece()
+        {
+            for (int y = 0; y < Rows; y++) //for each spot in game board
+            {
+                for (int x = 0; x < Cols; x++)
+                {
+                    for (int py = 0; py < PieceSz; py++) //for each position in piece
+                    {
+                        for (int px = 0; px < PieceSz; px++)
+                        {
+                            if (piecex + px == x && piecey + py == y) //if that piece position is the same as the game board spot
+                            {
+                                if (y < Rows - 1) //if it is before the bottom row
+                                {
+                                    if (gameboard[y + 1, x] != 0 && piece[py, px] != 0) //if there is something solid below the piece
+                                    {
+                                        StopPiece(); //stop the piece (glue it in)
+                                    }
+                                }
+                                if (piece[py, px] != 0) //if piece position is not blank
+                                {
+                                    gameboard[y, x] = piece[py, px]; //copy it to the gameboard
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        /// <summary>
+        /// This method rotates the piece.
+        /// </summary>
+        private void RotatePiece()
+        {
+            ClearPiece(); //clear the piece from the board
+            int[,] newpiece = new int[PieceSz, PieceSz]; //we will need a new piece
+            for (int y = 0; y < PieceSz; y++) //for each position in the piece
+            {
+                for (int x = 0; x < PieceSz; x++)
+                {
+                    newpiece[y, x] = piece[(PieceSz - 1) - x, y]; //get that position's value from the right side of the piece (rotate)
+                }
+            }
+            for (int y = 0; y < PieceSz; y++) //for each position
+            {
+                for (int x = 0; x < PieceSz; x++)
+                {
+                    piece[y, x] = newpiece[y, x]; //copy new piece to piece
+                }
+            }
+            AddPiece(); //add the piece to the game board
+        }
+        /// <summary>
+        /// This method stops the piece from moving, thus gluing it to the game board.
+        /// </summary>
+        private void StopPiece()
+        {
+            for (int y = 0; y < Rows; y++) //for each spot on the game board
+            {
+                for (int x = 0; x < Cols; x++)
+                {
+                    if (y < PieceSz && x < PieceSz) //if these counter values also work for the piece
+                    {
+                        if (piece[y, x] >= MoveIndicator) //if the piece was moving (it was)
+                            piece[y, x] -= MoveIndicator; //stop the movement
+                    }
+                    if (gameboard[y, x] >= MoveIndicator) //if that spot was a moving spot
+                        gameboard[y, x] -= MoveIndicator; //stop the movement
+                }
+            }
+        }
+        /// <summary>
+        /// This method checks to see if the game board contains any moving piece.
+        /// </summary>
+        /// <returns></returns> true if no moving piece, false if there is a moving piece.
+        private bool IsStopped()
+        {
+            for (int y = 0; y < Rows; y++) //for each spot on the game board
+            {
+                for (int x = 0; x < Cols; x++)
+                {
+                    if (gameboard[y, x] >= MoveIndicator) //if there is a moving part there
+                        return false; //return false (no, it is not stopped)
+                }
+            }
+            return true; //return true (yes, it is stopped)
+        }
+        /// <summary>
+        /// This method handles resizing the controls.
+        /// </summary>
+        private void ResizePBs()
+        {
+            backscreen.Location = new(0, 0); //locate and size backscreen
+            backscreen.Size = new(ClientSize.Width - 200, ClientSize.Height - 50);
+            int wide = backscreen.Width; //compute screen location and size such that screen.Width * 3 = screen.Height
+            int high = wide * Rows / Cols;
+            if (high > backscreen.Height)
+            {
+                high = backscreen.Height;
+                wide = high * Cols / Rows;
+            }
+            high = high / Rows * Rows; //adjust high and wide so they are exact
+            wide = wide / Cols * Cols;
+            screen.Size = new(wide, high); //set the size of the screen
+            int x = (backscreen.Width - wide) / 2;
+            int y = (backscreen.Height - high) / 2;
+            screen.Location = new(x, y); //set the location (centered) of the screen
+            info.Location = new(ClientSize.Width - 200, 0); //set sizes and locations of other controls
+            info.Size = new(200, ClientSize.Height);
+            status.Location = new(0, ClientSize.Height - 50);
+            status.Size = new(ClientSize.Width - 200, 50);
+            board.Dispose(); //make new bitmaps for board, status board, and info board
+            board = new(screen.Width, screen.Height);
+            statusboard.Dispose();
+            statusboard = new(status.Width, status.Height);
+            infoboard.Dispose();
+            infoboard = new(info.Width, info.Height);
+            DrawScreen(); //draw the screen
+        }
+        /// <summary>
+        /// This handler is called whenever the user resizes the form.
+        /// </summary>
+        private void WT_Resize(object? sender, EventArgs e) => ResizePBs(); //resize routine
+        /// <summary>
+        /// This handler is called whenever the user presses a key and calls the appropriate method to handle it.
+        /// </summary>
+        private void WT_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (!isbusy) //if we are not busy
+            {
+                switch (e.KeyData) //switch according to key pressed
+                {
+                    case Keys.Up: //up key
+                        RotatePiece(); //rotate piece
+                        break;
+                    case Keys.Down: //down key
+                        MovePieceDown(); //drop piece one line
+                        break;
+                    case Keys.Left: //left key
+                        MovePieceLeft(); //move piece left
+                        break;
+                    case Keys.Right: //right key
+                        MovePieceRight(); //move piece right
+                        break;
+                    case Keys.Delete: //delete key (gets rid of current piece)
+                        speed -= 25; //makes it a bit faster
+                        NewPiece(); //replaces piece
+                        break;
+                    case Keys.Space: //space key
+                        if (timer.Enabled) timer.Stop(); //if timer is running, stop it
+                        else timer.Start(); //otherwise, start it
+                        break;
+                    case Keys.Enter: //enter key
+                        DropPiece(); //drop piece all the way down
+                        break;
+                    case Keys.R: //R key
+                        RestartGame(); //restart game
+                        break;
+                    case Keys.Escape: //Esc key
+                        Close(); //close the window
+                        break;
+                    default: //any other key
+                        return; //return (so it is not marked as being handled)
+                }
+                e.Handled = true; //tell windows we handled that key
+                DrawScreen(); //draw the screen
+            }
+        }
+        /// <summary>
+        /// This method handles drawing the screen, drawing the status, and drawing the info.
+        /// </summary>
+        private void DrawScreen()
+        {
+            int hsz = board.Width / Cols; //compute horizontal and vertical sizes
+            int vsz = board.Height / Rows;
+            Color c = Color.FromArgb(16, 16, 16); //super dark grey / almost black
+            using Graphics g = Graphics.FromImage(board); //get graphics for board
+            {
+                g.Clear(c); //clear board to super dark color
+                for (int y = 0; y < Rows; y++) //for each spot on game board
+                {
+                    for (int x = 0; x < Cols; x++)
+                    {
+                        int gb = gameboard[y, x]; //convenience variable
+                        if (gb > 9) gb -= MoveIndicator; //remove travelling indicators
+                        if (gb == 0) c = Color.Black; //assign colors based on numbers
+                        if (gb == 1) c = Color.Blue;
+                        if (gb == 2) c = Color.Magenta;
+                        if (gb == 3) c = Color.Red;
+                        if (gb == 4) c = Color.Orange;
+                        if (gb == 5) c = Color.Yellow;
+                        if (gb == 6) c = Color.Green;
+                        if (gb == 7) c = Color.Aqua;
+                        if (gb == 8) c = Color.Gray;
+                        if (gb == 9) c = Color.White;
+                        SolidBrush b = new(c); //make a brush out of the color
+                        g.FillRectangle(b, x * hsz, y * vsz, hsz - 1, vsz - 1); //draw filled rectangle leaving 1 pixel on right and bottom
+                    }
+                }
+            }
+            screen.Image = board; //set board to screen
+            screen.Invalidate(); //tell windows to repaint screen
+            using Graphics gstatus = Graphics.FromImage(statusboard); //get graphics for status board
+            {
+                gstatus.Clear(Color.FromArgb(32, 32, 32)); //clear to dark grey
+                SolidBrush brush = new(Color.White); //use white brush
+                gstatus.DrawString("Piece: ", myfont, brush, 0, 0); //draw string "Piece: "
+                SizeF caret = gstatus.MeasureString("Piece: ", myfont); //get position after string
+                DrawPiece(gstatus, (int)caret.Width, 0, piece, Color.White); //draw piece
+                caret.Width += 40; //add 40 to position
+                gstatus.DrawString("Next: ", myfont, brush, caret.Width, 0); //draw string "Next: "
+                SizeF caradd = gstatus.MeasureString("Next: ", myfont); //get size of "Next: "
+                caret.Width += caradd.Width; //add it to position
+                DrawPiece(gstatus, (int)caret.Width, 0, nextpiece, Color.White); //draw next piece after string
+            }
+            status.Image = statusboard; //set status board to status
+            status.Invalidate(); //tell windows to repaint status
+            using Graphics ginfo = Graphics.FromImage(infoboard); //get graphics for info board
+            {
+                ginfo.Clear(Color.Navy); //clear to navy
+                SolidBrush brush = new(Color.White); //make brush
+                ginfo.DrawString($"Piece at {piecex}, {piecey}", myfont, brush, 0, 0); //show piece location
+                ginfo.DrawString($"Score: {score}", myfont, brush, 0, 50); //show score
+                ginfo.DrawString($"Speed: {speed}", myfont, brush, 0, 100); //show speed
+                DrawBars(ginfo, 0, 150, count, CountMax, 200, 30, $"Count: {count}"); //make bars for count
+            }
+            info.Image = infoboard; //set info board to info
+            info.Invalidate(); //tell windows to repaint info
+        }
+        /// <summary>
+        /// This method draws a piece.
+        /// </summary>
+        /// <param name="g"></param> The graphics object to use
+        /// <param name="startx"></param> The beginning x position to use
+        /// <param name="starty"></param> The beginning y position to use
+        /// <param name="piece"></param> The piece to draw
+        /// <param name="c"></param> The color to use
+        private static void DrawPiece(Graphics g, int startx, int starty, int[,]piece, Color c)
+        {
+            SolidBrush brush = new(c); //make a brush
+            for (int y = 0; y < PieceSz; y++) //for each position in piece
+                for (int x = 0; x < PieceSz; x++)
+                    if (piece[y, x] != 0) //if that position has color
+                        g.FillRectangle(brush, x * PieceSz + startx, y * PieceSz + starty, PieceSz - 1, PieceSz - 1); //paint it
+        }
+        /// <summary>
+        /// This method draws a piece from the available pieces.
+        /// </summary>
+        /// <param name="g"></param> The graphics object to use
+        /// <param name="startx"></param> The beginning x position to use
+        /// <param name="starty"></param> The beginning y position to use
+        /// <param name="index"></param> The index of the piece to draw
+        /// <param name="c"></param> The color to use
+        private void DrawPiece(Graphics g, int startx, int starty, int index, Color c)
+        {
+            SolidBrush brush = new(c); //make a brush
+            for (int y = 0; y < PieceSz; y++) //for each position in piece
+                for (int x = 0; x < PieceSz; x++)
+                    if (pieces[index, y, x] != 0) //if that position has color
+                        g.FillRectangle(brush, x * PieceSz + startx, y * PieceSz + starty, PieceSz - 1, PieceSz - 1); //paint it
+        }
+        /// <summary>
+        /// This method draws two bars, one on top of the other to show amount completed then draws text on top of it.
+        /// </summary>
+        /// <param name="g"></param> The graphics object to use
+        /// <param name="x"></param> The starting x position to use
+        /// <param name="y"></param> The starting y position to use
+        /// <param name="count"></param> The count that we have reached
+        /// <param name="total"></param> The total possible count
+        /// <param name="wide"></param> The maximum width of the bars
+        /// <param name="high"></param> How high to draw the bars
+        /// <param name="text"></param> The text to draw over the bars
+        private void DrawBars(Graphics g, int x, int y, int count, int total, int wide, int high, string text)
+        {
+            SolidBrush brush = new(Color.White); //make brushes
+            SolidBrush rbrush = new(Color.Red);
+            SolidBrush gbrush = new(Color.Green);
+            g.FillRectangle(rbrush, x, y, wide, high); //paint red all the way across
+            count = count * wide / total; //compute how far to paint for count
+            g.FillRectangle(gbrush, x, y, count, high); //paint green that far
+            g.DrawString(text, myfont, brush, x, y); //draw the text in white over the bars
+        }
+    }
+}
