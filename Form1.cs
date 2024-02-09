@@ -1,67 +1,40 @@
+using System.Drawing.Drawing2D;
+using System.Security.Permissions;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.ToolTip;
+using System.Windows.Forms;
+using System.Media;
+using System.Reflection;
+
 namespace WinTetris
 {
     public partial class Form1 : Form
     {
-        private readonly PieceType shape = new();
-        private readonly PieceType[] shapearray = [ new(new int[,] { { 0, 0, 0, 0, 0 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 0, 0, 0, 0, 0 } }),
-                                                    new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 1, 0, 0, 0 }, { 0, 1, 1, 1, 0 }, { 0, 0, 0, 0, 0 } }),
-                                                    new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 0, 1, 1, 0 }, { 0, 1, 1, 0, 0 }, { 0, 0, 0, 0, 0 } }),
-                                                    new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 1, 1, 0, 0 }, { 0, 0, 1, 1, 0 }, { 0, 0, 0, 0, 0 } }),
-                                                    new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 1, 1, 1, 0 }, { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 } }),
-                                                    new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 0, 0, 1, 0 }, { 0, 1, 1, 1, 0 }, { 0, 0, 0, 0, 0 } }),
-                                                    new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 1, 1, 1, 0 }, { 0, 0, 1, 0, 0 }, { 0, 0, 0, 0, 0 } }),
-                                                    new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 1, 1, 0, 0 }, { 0, 1, 1, 0, 0 }, { 0, 1, 1, 0, 0 }, { 0, 0, 0, 0, 0 } }),
-                                                    new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 1, 1, 1, 1 }, { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 } }),
-                                                    new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 0, 1, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 } }) ];
-        private int score = 0, speed = Constant.InitialSpeed, count = 0, piecex, piecey, nextpiece;
-        private bool isbusy = false, isgameover = false;
-        private readonly System.Windows.Forms.Timer timer = new();
-        private Bitmap board = new(1, 1);
-        private Bitmap helpboard = new(1, 1);
-        private Bitmap statusboard = new(1, 1);
-        private Bitmap infoboard = new(1, 1);
-        private readonly Panel backscreen;
-        private readonly PictureBox help;
-        private readonly PictureBox screen;
-        private readonly PictureBox info;
-        private readonly PictureBox status;
-        private readonly Font myfont = new("Arial", 15);
-        private readonly Dictionary<Keys, (string, Action)> keys;
-        
         /// <summary>
         /// Form1 is the default constructor for the main class, so it is the entry point.
         /// </summary>
         public Form1()
         {
-            keys = new Dictionary<Keys, (string, Action)>
-            {
-                { Keys.F1, ( "F1: gets help", GetHelp ) },
-                { Keys.Up, ( "up: rotate piece", RotatePiece ) },
-                { Keys.Left, ( "left: move piece left", MovePieceLeft ) },
-                { Keys.Right, ( "right: move piece right", MovePieceRight ) },
-                { Keys.Down, ( "down: move piece down", MovePieceDown ) },
-                { Keys.Enter, ( "enter: drop piece", DropPiece ) },
-                { Keys.Delete, ( "delete: delete current piece", DeletePiece ) },
-                { Keys.Space, ( "space: pauses / unpauses game", PauseUnpause ) },
-                { Keys.Back, ( "backspace: restarts game", RestartGame ) },
-                { Keys.Escape, ( "escape: exits game", Close ) }
-            };
+            Var.KeyStroke.Add(Keys.F1, ("F1: gets help", GetHelp)); //set up dictionary
+            Var.KeyStroke.Add(Keys.Up, ("up: rotate piece", RotatePiece));
+            Var.KeyStroke.Add(Keys.Left, ("left: move piece left", MovePieceLeft));
+            Var.KeyStroke.Add(Keys.Right, ("right: move piece right", MovePieceRight));
+            Var.KeyStroke.Add(Keys.Down, ("down: move piece down", MovePieceDown));
+            Var.KeyStroke.Add(Keys.Enter, ("enter: drop piece", DropPiece));
+            Var.KeyStroke.Add(Keys.Delete, ("delete: delete current piece", DeletePiece));
+            Var.KeyStroke.Add(Keys.Space, ("space: pauses / unpauses game", PauseUnpause));
+            Var.KeyStroke.Add(Keys.Back, ("backspace: restarts game", RestartGame));
+            Var.KeyStroke.Add(Keys.Escape, ("escape: exits game", Close));
             InitializeComponent(); //set up the main form
             KeyDown += WT_KeyDown; //set key down event handler
             Resize += WT_Resize; //set form resize event handler
             Shown += WT_Shown; //set form shown event handler
             FormClosing += WT_Closing; //set form closing event handler
-            backscreen = new() { BackColor = Color.FromArgb(32, 0, 0) }; //very dark red background
-            screen = new(); //make controls
-            help = new();
-            info = new();
-            status = new();
             ResizePBs(); //resize to get controls sizes and locations fixed
-            backscreen.Controls.Add(screen); //add screen to backscreen
-            backscreen.Controls.Add(help); //add help to backscreen
-            Controls.Add(backscreen); //add controls to form
-            Controls.Add(info);
-            Controls.Add(status);
+            Var.BackScreen.Controls.Add(Var.ScreenArea); //add screen to backscreen
+            Var.BackScreen.Controls.Add(Var.HelpArea); //add help to backscreen
+            Controls.Add(Var.BackScreen); //add controls to form
+            Controls.Add(Var.InfoArea);
+            Controls.Add(Var.StatusArea);
         }
         
         /// <summary>
@@ -69,17 +42,17 @@ namespace WinTetris
         /// </summary>
         private void WT_Closing(object? sender, FormClosingEventArgs e)
         {
-            timer.Stop(); //stop the timer if it is running
+            Var.Timer.Stop(); //stop the timer if it is running
             if (MessageBox.Show("Exit?", "Quit", MessageBoxButtons.YesNo) == DialogResult.Yes) //if user agrees to exit
             {
                 e.Cancel = false; //we don't want to cancel
                 return; //and we are done
             }
-            isgameover = false; //game is not over now
+            Var.IsGameOver = false; //game is not over now
             e.Cancel = true; //we don't want to close
             if (MessageBox.Show("Begin again?", "Restart?", MessageBoxButtons.YesNo) == DialogResult.Yes) //if user wants to restart
                 RestartGame(); //restart game
-            timer.Start(); //start the timer back up
+            Var.Timer.Start(); //start the timer back up
         }
         
         /// <summary>
@@ -87,23 +60,23 @@ namespace WinTetris
         /// </summary>
         private void WT_Shown(object? sender, EventArgs e)
         {
-            timer.Interval = 1; //timer interval set to 1 to do immediately, it will get reset to speed in the event handler
-            timer.Tick += WT_Time; //event handler for timer
-            timer.Start(); //start the timer
+            Var.Timer.Interval = 1; //timer interval set to 1 to do immediately, it will get reset to speed in the event handler
+            Var.Timer.Tick += WT_Time; //event handler for timer
+            Var.Timer.Start(); //start the timer
         }
         
         /// <summary>
         /// This method sets the variables for a fresh start of the game.
         /// </summary>
-        private void RestartGame()
+        public static void RestartGame()
         {
-            timer.Stop(); //stop the timer
-            score = 0; //reset variables
-            speed = Constant.InitialSpeed;
-            count = 0;
+            Var.Timer.Stop(); //stop the timer
+            Var.Score = 0; //reset variables
+            Var.Speed = Constant.InitialSpeed;
+            Var.Count = 0;
             GameBoard.SetBoard(0); //reset the game board
-            timer.Interval = 1; //set timer interval to 1 to do immediately
-            timer.Start(); //start the timer back up
+            Var.Timer.Interval = 1; //set timer interval to 1 to do immediately
+            Var.Timer.Start(); //start the timer back up
         }
         
         /// <summary>
@@ -112,51 +85,53 @@ namespace WinTetris
         /// </summary>
         private void WT_Time(object? sender, EventArgs e)
         {
-            timer.Stop(); //stop the timer
+            Var.Timer.Stop(); //stop the timer
             if (!GameBoard.IsMoving()) //if the piece is stopped
                 NewPiece(); //make a new piece
             else //otherwise
                 MovePieceDown(); //move the piece down
             DrawScreen(); //draw the screen
-            if (isgameover) //if game over
+            if (Var.IsGameOver) //if game over
             {
                 MessageBox.Show("Game Over!"); //tell the user
                 Close(); //close the window
             }
             else //otherwise
             {
-                if (speed < Constant.MinimumSpeed)
+                if (Var.Speed < Constant.MinimumSpeed)
                 {
-                    speed = Constant.MinimumSpeed; //if speed is less than minimum speed, set it to minimum speed
+                    Var.Speed = Constant.MinimumSpeed; //if speed is less than minimum speed, set it to minimum speed
                 }
-                timer.Interval = speed; //set the timer interval
-                timer.Start(); //start the timer back up
+                Var.Timer.Interval = Var.Speed; //set the timer interval
+                Var.Timer.Start(); //start the timer back up
             }
         }
         
         /// <summary>
         /// This method copies the piece from nextpiece and generates a new nextpiece.
         /// </summary>
-        private void NewPiece()
+        private static void NewPiece()
         {
-            //int firstpiecehere;
             Random r = new(); //make a new random number generator
             GameBoard.ClearMoving(); //clear the piece from the game board
             int pi = r.Next(10); //get a piece index randomly (0 - 9)
             int pc = r.Next(9) + 1; //get a color for the piece (1 - 9)
-            shape.CopyFrom(shapearray[nextpiece], 10 + pc); //copy the piece from nextpiece
-            if (!shape.CanMoveTo(3, 0)) //if 3, 0 is not a valid spot for the piece
-                isgameover = true;
-            piecex = 3; //position the piece
-            piecey = 0;
-            nextpiece = pi; //set the next piece according to piece index
+            Var.Shape.CopyFrom(Var.ShapeArray[Var.NextPiece], 10 + pc); //copy the piece from nextpiece
+            if (!Var.Shape.CanMoveTo(3, 0)) //if 3, 0 is not a valid spot for the piece
+            {
+                Var.IsGameOver = true;
+            }
+            Var.PieceX = 3; //position the piece
+            Var.PieceY = 0;
+            Var.NextPiece = pi; //set the next piece according to piece index
             AddPiece(); //add the piece to the game board
+            Var.NewPiece = true; //set flag for new piece
         }
         
         /// <summary>
         /// This method will keep moving a piece down until it stops.
         /// </summary>
-        private void DropPiece()
+        public static void DropPiece()
         {
             while (GameBoard.IsMoving()) //while the piece is still moving
                 MovePieceDown(); //move it down
@@ -165,27 +140,28 @@ namespace WinTetris
         /// <summary>
         /// This method moves the piece left.
         /// </summary>
-        private void MovePieceLeft() => MovePiece(-1, 0); //move piece left
+        public static void MovePieceLeft() => MovePiece(-1, 0); //move piece left
         
         /// <summary>
         /// This method moves the piece right.
         /// </summary>
-        private void MovePieceRight() => MovePiece(1, 0); //move piece right
+        public static void MovePieceRight() => MovePiece(1, 0); //move piece right
         
         /// <summary>
         /// This method moves the piece down.  It also handles the count for reducing the delay thus increasing the speed.
         /// </summary>
-        private void MovePieceDown()
+        public static void MovePieceDown()
         {
-            count++; //increment count
-            if (count > Constant.CountMax) //if count is greater than 1000
+            Var.Count++; //increment count
+            if (Var.Count > Constant.CountMax) //if count is greater than 1000
             {
-                count = 0; //reset count to 0
-                score += Constant.ScoreAdd; //add 100 to score
-                speed -= Constant.SpeedSub; //subtract 25 from speed
+                Var.Count = 0; //reset count to 0
+                Var.Score += Constant.ScoreAdd; //add 100 to score
+                Var.Speed -= Constant.SpeedSub; //subtract 25 from speed
             }
+            Var.NewScore = true; //set flag for new score
             MovePiece(0, 1); //move piece down
-            DrawScreen();
+            DrawScreen(); //draw the screen
         }
         
         /// <summary>
@@ -193,51 +169,94 @@ namespace WinTetris
         /// </summary>
         /// <param name="x"></param> Horizontal movement
         /// <param name="y"></param> Vertical movement
-        private void MovePiece(int x, int y)
+        private static void MovePiece(int x, int y)
         {
-            isbusy = true; //set busy flag
+            Var.IsBusy = true; //set busy flag
             GameBoard.ClearMoving(); //clear piece from game board
-            if (shape.CanMoveTo(piecex + x, piecey + y)) //if move is valid
+            if (Var.Shape.CanMoveTo(Var.PieceX + x, Var.PieceY + y)) //if move is valid
             {
-                piecex += x; //move in x
-                piecey += y; //move in y
+                Var.PieceX += x; //move in x
+                Var.PieceY += y; //move in y
             }
             AddPiece(); //add piece back to game board
             if (GameBoard.PieceAtBottom()) //if piece is at the bottom of the game board
                 GameBoard.StopMoving(); //stop the piece there (glue it in place)
             CheckLines(); //check for lines filled
-            isbusy = false; //reset busy flag
+            Var.IsBusy = false; //reset busy flag
             DrawScreen(); //draw the screen
         }
 
         /// <summary>
         /// This method checks each line of the game board and if it is filled, it will remove the line.  It uses recursive logic to make sure it catches all filled lines.
         /// </summary>
-        private void CheckLines()
+        private static void CheckLines()
         {
-            int line;
-            while ((line = GameBoard.FilledLine()) != -1) //while there are filled lines
+            Var.Timer.Stop(); //stop main game timer
+            int line; //we will need this variable
+            if ((line = GameBoard.FilledLine()) != -1) //if there is a filled line
             {
-                GameBoard.RemoveLine(line); //remove filled line
-                score += Constant.ScoreAdd; //add 100 to score
+                int r = Var.Rand.Next(3); //get a random number from 0 to 2
+                string resourcefile = $"{Var.AppSource}{Var.SoundFile[r]}{Var.FileExtension}"; //compile resource file
+                SoundSystem.PlayEmbeddedSound(resourcefile); //play sound effect
+                DrawScreen(); //draw the screen
+                Var.AnimSpot = 0; //start animation from beginning
+                Var.AnimLine = line; //we'll need to have this copied
+                Var.AnimTimer.Interval = 25; //a pretty short timer
+                Var.AnimTimer.Tick += AnimTimer; //set event handler
+                Var.AnimTimer.Start(); //start animation timer
+            }
+            else //otherwise
+            {
+                Var.Timer.Start(); //restart main game timer
             }
         }
-        
+
+        /// <summary>
+        /// This method is the event handler for the animation timer.  For many runs, it changes the color and draws the line.  
+        /// For its last run, it deletes the line and resets some variables.
+        /// </summary>
+        private static void AnimTimer(object? sender, EventArgs e)
+        {
+            Var.AnimTimer.Stop(); //stop the animation timer
+            int ccomp = 255 - Var.AnimSpot * 8; //computer color component
+            if (ccomp >= 0) //if color component is greater than zero
+            {
+                using SolidBrush brush = new(Color.FromArgb(ccomp, ccomp, ccomp)); //make a brush from color component
+                {
+                    GameBoard.PaintLine(Var.ScreenPic, Var.AnimLine, brush); //paint the line using that color
+                }
+                Var.ScreenArea.Image = Var.ScreenPic; //set screen to use the picture
+                Var.ScreenArea.Invalidate(); //tell windows to repaint the screen
+                Var.AnimSpot++; //increment AnimSpot
+                Var.AnimTimer.Start(); //restart animation timer
+            }
+            else //otherwise (last run)
+            {
+                GameBoard.RemoveLine(Var.AnimLine); //remove the line
+                Var.Score += Constant.ScoreAdd; //add 100 to score
+                Var.NewScore = true; //set the newscore variable
+                DrawScreen(); //draw the screen
+                Var.AnimTimer.Tick -= AnimTimer; //remove event handler from animation timer
+                Var.Timer.Start(); //restart main game timer
+                CheckLines(); //check lines to make sure we got all filled lines
+            }
+        }
+
         /// <summary>
         /// This method adds the piece back onto the game board.  It also checks to see if the piece should stop and handles it appropriately.
         /// </summary>
-        private void AddPiece()
+        private static void AddPiece()
         {
-            GameBoard.AddPiece(shape, piecex, piecey);
+            GameBoard.AddPiece(Var.Shape, Var.PieceX, Var.PieceY);
         }
         
         /// <summary>
         /// This method rotates the piece.
         /// </summary>
-        private void RotatePiece()
+        public static void RotatePiece()
         {
             GameBoard.ClearMoving(); //clear the piece from the board
-            shape.Rotate(); //rotate the piece
+            Var.Shape.Rotate(); //rotate the piece
             AddPiece(); //add the piece to the game board
             DrawScreen(); //draw the screen
         }
@@ -247,38 +266,60 @@ namespace WinTetris
         /// </summary>
         private void ResizePBs()
         {
-            Text = Constant.Version; //set titlebar text for window
-            backscreen.Location = new(0, 0); //locate and size backscreen
-            backscreen.Size = new(ClientSize.Width - 200, ClientSize.Height - 50);
-            help.Location = new(0, 0); //location and size of help
-            help.Size = new(backscreen.Width, backscreen.Height);
-            help.Visible = false;
-            int wide = backscreen.Width; //compute screen location and size such that screen.Width * 3 = screen.Height
-            int high = wide * Constant.Rows / Constant.Cols;
-            if (high > backscreen.Height)
+            try
             {
-                high = backscreen.Height;
-                wide = high * Constant.Cols / Constant.Rows;
+                Text = Constant.Version; //set titlebar text for window
+                Var.BackScreen.Location = new(0, 0); //locate and size backscreen
+                Var.BackScreen.Size = new(ClientSize.Width - 200, ClientSize.Height - 50);
+                Var.HelpArea.Location = new(0, 0); //location and size of help
+                Var.HelpArea.Size = new(Var.BackScreen.Width, Var.BackScreen.Height);
+                Var.HelpArea.Visible = false;
+                Var.HelpPic = ResizeBmp(Var.HelpPic, Var.HelpArea.Width, Var.HelpArea.Height); //resize the picture for the help area
+                int wide = Var.BackScreen.Width; //compute screen location and size such that screen.Width * 3 = screen.Height
+                int high = wide * Constant.Rows / Constant.Cols;
+                if (high > Var.BackScreen.Height) //if our calculated height is more than the panel height
+                {
+                    high = Var.BackScreen.Height; //reverse the calculation
+                    wide = high * Constant.Cols / Constant.Rows;
+                }
+                high = high / Constant.Rows * Constant.Rows; //adjust high and wide so they are exact
+                wide = wide / Constant.Cols * Constant.Cols;
+                Var.ScreenArea.Size = new(wide, high); //set the size of the screen
+                int x = (Var.BackScreen.Width - wide) / 2; //get center location
+                int y = (Var.BackScreen.Height - high) / 2;
+                Var.ScreenArea.Location = new(x, y); //set the location (centered) of the screen
+                Var.ScreenPic = ResizeBmp(Var.ScreenPic, Var.ScreenArea.Width, Var.ScreenArea.Height); //resize the picture for the screen area
+                Var.InfoArea.Location = new(ClientSize.Width - 200, 0); //set sizes and locations of other controls
+                Var.InfoArea.Size = new(200, ClientSize.Height);
+                //Var.InfoPic = ResizeBmp(Var.InfoPic, Var.InfoArea.Width, Var.InfoArea.Height); //resize the picture for the info area
+                Var.StatusArea.Location = new(0, ClientSize.Height - 50);
+                Var.StatusArea.Size = new(ClientSize.Width - 200, 50);
+                //Var.StatusPic = ResizeBmp(Var.StatusPic, Var.StatusArea.Width, Var.StatusArea.Height);
             }
-            high = high / Constant.Rows * Constant.Rows; //adjust high and wide so they are exact
-            wide = wide / Constant.Cols * Constant.Cols;
-            screen.Size = new(wide, high); //set the size of the screen
-            int x = (backscreen.Width - wide) / 2;
-            int y = (backscreen.Height - high) / 2;
-            screen.Location = new(x, y); //set the location (centered) of the screen
-            info.Location = new(ClientSize.Width - 200, 0); //set sizes and locations of other controls
-            info.Size = new(200, ClientSize.Height);
-            status.Location = new(0, ClientSize.Height - 50);
-            status.Size = new(ClientSize.Width - 200, 50);
-            board.Dispose(); //make new bitmaps for board, help board, status board, and info board
-            board = new(screen.Width, screen.Height);
-            helpboard.Dispose();
-            helpboard = new(help.Width, help.Height);
-            statusboard.Dispose();
-            statusboard = new(status.Width, status.Height);
-            infoboard.Dispose();
-            infoboard = new(info.Width, info.Height);
+            catch (Exception ex)
+            {
+                Var.Timer.Stop();
+                MessageBox.Show($"Resize Error: {ex.Message}", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (!Var.IsPaused)
+                    Var.Timer.Start();
+            }
             DrawScreen(); //draw the screen
+        }
+
+        /// <summary>
+        /// This method resizes a bitmap by creating a new one then getting rid of the old one.  Contents are NOT preserved.
+        /// The method will normally be called with "thebitmap = ResizeBmp(thebitmap, newwidth, newheight);"
+        /// </summary>
+        /// <param name="oldbmp"></param> The old bitmap to be disposed of.
+        /// <param name="wide"></param> The new width to be used.
+        /// <param name="high"></param> The new height to be used.
+        /// <returns></returns>
+        private static Bitmap ResizeBmp(Bitmap oldbmp, int wide, int high)
+        {
+            Bitmap newbmp = new(wide, high); //make a new bitmap
+            //this is where we would copy contents if we cared.
+            oldbmp.Dispose(); //get rid of the old one
+            return newbmp; //return the new bitmap
         }
         
         /// <summary>
@@ -291,9 +332,9 @@ namespace WinTetris
         /// </summary>
         private void WT_KeyDown(object? sender, KeyEventArgs e)
         {
-            if (!isbusy) //if we are not busy
+            if (!Var.IsBusy) //if we are not busy
             {
-                if (keys.TryGetValue(e.KeyData, out var tupvar)) //if keystroke is in dictionary
+                if (Var.KeyStroke.TryGetValue(e.KeyData, out var tupvar)) //if keystroke is in dictionary
                 {
                     DoDebug.Write($">> {SeparateKeys(tupvar.Item1).Item1} pressed."); //write debugging message
                     tupvar.Item2(); //execute function (yeah, action)
@@ -311,38 +352,44 @@ namespace WinTetris
         /// <summary>
         /// This method provides help for the keys used by the game.
         /// </summary>
-        private void GetHelp()
+        public static void GetHelp()
         {
-            timer.Stop(); //stop the timer
-            SizeF caret = new(0, 0); //set up a size control
+            Var.Timer.Stop(); //stop the timer
+            Var.IsPaused = true; //set flag for paused
+            SizeF caret; //set up a size control
             int yposition = 0; //set up a y position
             string key, message;
-            using Graphics g = Graphics.FromImage(helpboard);
+            using Graphics g = Graphics.FromImage(Var.HelpPic);
             {
+                g.Clear(Color.Black); //clear background
                 using SolidBrush white = new(Color.White);
                 {
                     using SolidBrush yellow = new(Color.Yellow);
                     {
-                        foreach (var keytuple in keys.Values)
+                        string title = "Keyboard Help"; //set a title
+                        g.DrawString(title, Var.MyFont, white, 0, 0); //output title in white
+                        caret = g.MeasureString(title, Var.MyFont); //get size of string
+                        yposition += (int)caret.Height * 2; //add two lines
+                        foreach (var keytuple in Var.KeyStroke.Values)
                         {
                             int xposition = 0; //set up a x position
                             (key, message) = SeparateKeys(keytuple.Item1); //separate key and message
-                            g.DrawString(key, myfont, yellow, 0, yposition); //output key in yellow
-                            caret = g.MeasureString(key, myfont); //get size of string
+                            g.DrawString(key, Var.MyFont, yellow, 0, yposition); //output key in yellow
+                            caret = g.MeasureString(key, Var.MyFont); //get size of string
                             xposition += (int)caret.Width; //add width to x position
-                            g.DrawString($" - {message}", myfont, white, xposition, yposition); //output message in white
-                            caret = g.MeasureString(message, myfont); //get size of string
+                            g.DrawString($" - {message}", Var.MyFont, white, xposition, yposition); //output message in white
+                            caret = g.MeasureString(message, Var.MyFont); //get size of string
                             yposition += (int)caret.Height; //add height to y position
                         }
                         yposition += (int)caret.Height; //add an extra line
-                        g.DrawString("\nGame is paused.  Press space to continue.", myfont, white, 0, yposition); //give instructions
+                        g.DrawString("\nGame is paused.  Press space to continue.", Var.MyFont, white, 0, yposition); //give instructions
                     }
                 }
             }
-            screen.Visible = false; //stop showing screen
-            help.Visible = true; //show help
-            help.Image = helpboard; //set info area to use infoboard for its image
-            help.Invalidate(); //tell windows to repaint info area
+            Var.ScreenArea.Visible = false; //stop showing screen
+            Var.HelpArea.Visible = true; //show help
+            Var.HelpArea.Image = Var.HelpPic; //set info area to use Var.InfoPic for its image
+            Var.HelpArea.Invalidate(); //tell windows to repaint info area
         }
 
         /// <summary>
@@ -355,71 +402,182 @@ namespace WinTetris
         /// <summary>
         /// This method increases the speed and deletes the current piece.
         /// </summary>
-        private void DeletePiece()
+        public static void DeletePiece()
         {
-            speed -= Constant.SpeedSub; //make it a bit faster
+            Var.Speed -= Constant.SpeedSub; //make it a bit faster
             NewPiece(); //replace piece
+            Var.NewScore = true; //set flag for new score
             DrawScreen(); //draw the screen
         }
 
         /// <summary>
         /// This method toggles the timer on / off.
         /// </summary>
-        private void PauseUnpause()
+        public static void PauseUnpause()
         {
-            if (timer.Enabled) //if timer is active
-            {
-                timer.Stop(); //stop timer
-            }
-            else //otherwise
-            {
-                timer.Start(); //start timer back up
-            }
+            Var.Timer.Enabled = !Var.Timer.Enabled; //toggle timer.Enabled
+            Var.IsPaused = !Var.IsPaused; //toggle ispaused
             DrawScreen(); //draw the screen
         }
 
         /// <summary>
         /// This method handles drawing the screen, drawing the status, and drawing the info.
         /// </summary>
-        private void DrawScreen()
+        private static void DrawScreen()
         {
-            help.Visible = false; //turn off help
-            screen.Visible = true; //turn on screen
-            GameBoard.PaintBoard(board, Color.FromArgb(16, 16, 16));
-            screen.Image = board; //set board to screen
-            screen.Invalidate(); //tell windows to repaint screen
-            using Graphics gstatus = Graphics.FromImage(statusboard); //get graphics for status board
+            try
             {
-                gstatus.Clear(Color.FromArgb(32, 32, 32)); //clear to dark grey
-                using SolidBrush brush = new(Color.White); //use white brush
+                Var.HelpArea.Visible = false; //turn off help
+                Var.ScreenArea.Visible = true; //turn on screen
+                GameBoard.PaintBoard(Var.ScreenPic, Color.FromArgb(16, 16, 16));
+                if (Var.IsPaused) //if we are paused
                 {
-                    gstatus.DrawString("Piece: ", myfont, brush, 0, 0); //draw string "Piece: "
-                    SizeF caret = gstatus.MeasureString("Piece: ", myfont); //get position after string
-                    shape.PaintPiece(gstatus, (int)caret.Width, 0, 5, Color.White); //draw piece
-                    caret.Width += 40; //add 40 to position
-                    gstatus.DrawString("Next: ", myfont, brush, caret.Width, 0); //draw string "Next: "
-                    SizeF caradd = gstatus.MeasureString("Next: ", myfont); //get size of "Next: "
-                    caret.Width += caradd.Width; //add it to position
-                    shapearray[nextpiece].PaintPiece(gstatus, (int)caret.Width, 0, 5, Color.White); //draw next piece
-                    caret.Width += 50; //add 50 to position
-                    gstatus.DrawString("Press F1 for help with keys.", myfont, brush, caret.Width, 0); //give instructions
+                    DrawCentered(Var.ScreenPic, "PAUSED"); //draw the word paused over the screen
+                }
+                Var.ScreenArea.Image = Var.ScreenPic; //set board to screen
+                Var.ScreenArea.Invalidate(); //tell windows to repaint screen
+            }
+            catch (Exception ex)
+            {
+                Var.Timer.Stop();
+                MessageBox.Show($"Draw Screen Error: {ex.Message}", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (!Var.IsPaused)
+                    Var.Timer.Start();
+            }
+            if (Var.NewPiece) //if new piece flag set
+            {
+                DrawStatus(); //draw status bar
+                Var.NewPiece = false;
+            }
+            if (Var.NewScore) //if new score flag set
+            {
+                DrawInfo(); //draw info area
+                Var.NewScore = false;
+            }
+        }
+
+        /// <summary>
+        /// This method draws the text outlined and centered to the middle of the bitmap.
+        /// </summary>
+        /// <param name="bmp"></param> The image to write to.
+        /// <param name="text"></param> The text to write.
+        private static void DrawCentered(Image bmp, string text)
+        {
+            float fontsize = 15; //font size
+            float targetpercent = 0.9f, filledpercent;
+            try
+            {
+                using Graphics g = Graphics.FromImage(bmp); //get a graphics object for out bitmap
+                {
+                    using StringFormat strfmt = new() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center }; //use a string format to center text
+                    {
+                        using Font font = new("Impact", fontsize, FontStyle.Bold, GraphicsUnit.Pixel); //make a new font to use
+                        {
+                            using Pen pen = new(Color.White, 3) { LineJoin = LineJoin.Round }; //make a white pen with a thickness of 3
+                            {
+                                using SolidBrush brush = new(Color.Black); //make a black brush
+                                {
+                                    Rectangle rect = new(0, 0, bmp.Width, bmp.Height); //make a rectangle for the image
+                                    using GraphicsPath gp = new(); //make a new graphics path
+                                    {
+                                        do
+                                        {
+                                            gp.Reset(); //reset the graphics path
+                                            gp.AddString(text, font.FontFamily, (int)font.Style, fontsize, rect, strfmt); //add text to the graphics path using fontsize
+                                            filledpercent = (float)gp.GetBounds().Width / rect.Width; //get amount filled
+                                            if (filledpercent > targetpercent) //if too much filled
+                                            {
+                                                fontsize -= 1; //reduce font size
+                                            }
+                                            else //otherwise
+                                            {
+                                                fontsize += 1; //increase font size
+                                            }
+                                        }
+                                        while (Math.Abs(1 - filledpercent / targetpercent) > 0.05f); // Adjust until close enough to the target percentage
+                                        g.SmoothingMode = SmoothingMode.AntiAlias; //set graphics object to use antialiasing
+                                        g.PixelOffsetMode = PixelOffsetMode.HighQuality; //set graphics object to use high quality
+                                        g.DrawPath(pen, gp); //draw the outline in white
+                                        g.FillPath(brush, gp); //fill it with black
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            status.Image = statusboard; //set status board to status
-            status.Invalidate(); //tell windows to repaint status
-            using Graphics ginfo = Graphics.FromImage(infoboard); //get graphics for info board
+            catch (Exception ex)
             {
-                ginfo.Clear(Color.Navy); //clear to navy
-                using SolidBrush brush = new(Color.White); //make brush
-                {
-                    ginfo.DrawString($"Piece at {piecex}, {piecey}", myfont, brush, 0, 0); //show piece location
-                    ginfo.DrawString($"Score: {score}", myfont, brush, 0, 50); //show score
-                    ginfo.DrawString($"Speed: {speed}", myfont, brush, 0, 100); //show speed
-                }
-                DrawBars(ginfo, 0, 150, count, Constant.CountMax, 200, 30, $"Count: {count}"); //make bars for count
+                Var.Timer.Stop();
+                MessageBox.Show($"Draw Centered Error: {ex.Message}", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (!Var.IsPaused)
+                    Var.Timer.Start();
             }
-            info.Image = infoboard; //set info board to info
-            info.Invalidate(); //tell windows to repaint info
+        }
+
+        /// <summary>
+        /// This method draws the status area.
+        /// </summary>
+        private static void DrawStatus()
+        {
+            try
+            {
+                using Graphics gstatus = Graphics.FromImage(Var.StatusPic); //get graphics for status board
+                {
+                    gstatus.Clear(Color.FromArgb(32, 32, 32)); //clear to dark grey
+                    using SolidBrush brush = new(Color.White); //use white brush
+                    {
+                        gstatus.DrawString("Piece: ", Var.MyFont, brush, 0, 0); //draw string "Piece: "
+                        SizeF caret = gstatus.MeasureString("Piece: ", Var.MyFont); //get position after string
+                        Var.Shape.PaintPiece(gstatus, (int)caret.Width, 0, 5, Color.White); //draw piece
+                        caret.Width += 40; //add 40 to position
+                        gstatus.DrawString("Next: ", Var.MyFont, brush, caret.Width, 0); //draw string "Next: "
+                        SizeF caradd = gstatus.MeasureString("Next: ", Var.MyFont); //get size of "Next: "
+                        caret.Width += caradd.Width; //add it to position
+                        Var.ShapeArray[Var.NextPiece].PaintPiece(gstatus, (int)caret.Width, 0, 5, Color.White); //draw next piece
+                        caret.Width += 50; //add 50 to position
+                        gstatus.DrawString("Press F1 for help with keys.", Var.MyFont, brush, caret.Width, 0); //give instructions
+                    }
+                }
+                Var.StatusArea.Image = Var.StatusPic; //set status board to status
+                Var.StatusArea.Invalidate(); //tell windows to repaint status
+            }
+            catch (Exception ex)
+            {
+                Var.Timer.Stop();
+                MessageBox.Show($"Draw Status Error: {ex.Message}", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (!Var.IsPaused)
+                    Var.Timer.Start();
+            }
+        }
+
+        /// <summary>
+        /// This method draws the info area.
+        /// </summary>
+        private static void DrawInfo()
+        {
+            try
+            {
+                using Graphics ginfo = Graphics.FromImage(Var.InfoPic); //get graphics for info board
+                {
+                    ginfo.Clear(Color.Navy); //clear to navy
+                    using SolidBrush brush = new(Color.White); //make brush
+                    {
+                        ginfo.DrawString($"Score: {Var.Score}", Var.MyFont, brush, 0, 0); //show score
+                        ginfo.DrawString($"Speed: {Var.Speed}", Var.MyFont, brush, 0, 50); //show speed
+                    }
+                    DrawBars(ginfo, 0, 100, Var.Count, Constant.CountMax, 200, 30, $"Count: {Var.Count}"); //make bars for count
+                }
+                Var.InfoArea.Image = Var.InfoPic; //set info board to info
+                Var.InfoArea.Invalidate(); //tell windows to repaint info
+            }
+            catch (Exception ex)
+            {
+                Var.Timer.Stop();
+                MessageBox.Show($"Draw Info Error: {ex.Message}", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (!Var.IsPaused)
+                    Var.Timer.Start();
+            }
         }
 
         /// <summary>
@@ -433,7 +591,7 @@ namespace WinTetris
         /// <param name="wide"></param> The maximum width of the bars
         /// <param name="high"></param> How high to draw the bars
         /// <param name="text"></param> The text to draw over the bars
-        private void DrawBars(Graphics g, int x, int y, int count, int total, int wide, int high, string text)
+        private static void DrawBars(Graphics g, int x, int y, int count, int total, int wide, int high, string text)
         {
             using SolidBrush brush = new(Color.White); //make brushes
             {
@@ -444,7 +602,7 @@ namespace WinTetris
                         g.FillRectangle(rbrush, x, y, wide, high); //paint red all the way across
                         count = count * wide / total; //compute how far to paint for count
                         g.FillRectangle(gbrush, x, y, count, high); //paint green that far
-                        g.DrawString(text, myfont, brush, x, y); //draw the text in white over the bars
+                        g.DrawString(text, Var.MyFont, brush, x, y); //draw the text in white over the bars
                     }
                 }
             }
@@ -782,6 +940,7 @@ namespace WinTetris
 
         /// <summary>
         /// This method handles painting the game board to a bitmap.
+        /// We use a brush (cause Windows works that way) to fill rectangles on the bitmap because it is the simplest way to convey the game board in a "readable" way.
         /// </summary>
         /// <param name="pbox"></param> This is the bitmap we are painting to.
         /// <param name="back"></param> This is the background color to use (it will be the small lines segmenting the individual spots).
@@ -817,9 +976,29 @@ namespace WinTetris
                         {
                             g.FillRectangle(b, x * hsize, y * vsize, hsize - 1, vsize - 1); //draw filled rectangle leaving 1 pixel on right and bottom
                         }
-
                     }
                 }
+                g.Flush(); //make sure everything is written before closing the graphics object
+            }
+        }
+
+        /// <summary>
+        /// This method is used by the animation timer event handler to paint a line in a specified color.
+        /// </summary>
+        /// <param name="box"></param> The bitmap to paint to.
+        /// <param name="line"></param> The line to paint.
+        /// <param name="brush"></param> The brush to use.
+        public static void PaintLine(Image box, int line, SolidBrush brush)
+        {
+            int hsize = box.Width / Constant.Cols; //compute sizes
+            int vsize = box.Height / Constant.Rows;
+            using Graphics g = Graphics.FromImage(box); //get graphics object from bitmap
+            {
+                for (int x = 0; x < Constant.Cols; x++) //for each position in line
+                {
+                    g.FillRectangle(brush, x * hsize, line * vsize, hsize - 1, vsize - 1); //paint the spot
+                }
+                g.Flush(); //flush the graphics object to verify everything is written
             }
         }
     }
@@ -843,13 +1022,47 @@ namespace WinTetris
     }
 
     /// <summary>
-    /// This class contains publicly available constants for the program.
+    /// This class handles playing sounds from the resources.
     /// </summary>
-    public class Constant
+    public static class SoundSystem
+    {
+        public static void PlayEmbeddedSound(string resourceName)
+        {
+            if (Var.DoSounds) //if we are playing sounds
+            {
+                try //make the attempt
+                {
+                    Assembly currentAssembly = Assembly.GetExecutingAssembly(); //get assembly
+                    using Stream? resourceStream = currentAssembly.GetManifestResourceStream(resourceName); //get a resource stream
+                    {
+                        if (resourceStream == null) //if it failed
+                        {
+                            MessageBox.Show("Resource not found.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); //give an error message
+                            return;
+                        }
+                        using SoundPlayer player = new(resourceStream); //make a sound player
+                        {
+                            player.Play(); //play the sound
+                        }
+                    }
+                }
+                catch (Exception ex) //if there was an error
+                {
+                    MessageBox.Show($"Error playing embedded sound: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); //show the error message
+                }
+            }
+        }
+    }
+
+
+        /// <summary>
+        /// This class contains publicly available constants for the program.
+        /// </summary>
+        public class Constant
     {
         public const int MajorVersion = 0; //major version #
         public const int MinorVersion = 1; //minor version #
-        public const int Revision = 0; //revision #
+        public const int Revision = 2; //revision #
         public const string ReleaseType = "alpha"; //release type (alpha, beta, final, etc)
         public const string ProgramName = "WinTetris"; //program name
         public const int InitialSpeed = 2000; //initial speed used by the timer (milliseconds)
@@ -863,5 +1076,54 @@ namespace WinTetris
         public const bool IsDebug = true; //whether to do debugging messages
 
         public static string Version => $"{ProgramName} version {MajorVersion}.{MinorVersion}.{Revision}-{ReleaseType}";
+    }
+
+    /// <summary>
+    /// This class contains the variables used by the program.
+    /// </summary>
+    public class Var
+    {
+        public static int NextPiece { get; set; }
+        public static int PieceX { get; set; }
+        public static int PieceY { get; set; }
+        public static int Count { get; set; }
+        public static int Speed { get; set; } = Constant.InitialSpeed;
+        public static int Score { get; set; }
+        public static bool IsPaused { get; set; } = false;
+        public static bool NewScore { get; set; } = true;
+        public static bool NewPiece { get; set; } = false;
+        public static bool IsGameOver { get; set; } = false;
+        public static bool IsBusy { get; set; } = false;
+        public static Dictionary<Keys, (string, Action)> KeyStroke { get; set; } = [];
+        public static PieceType Shape { get; set; } = new();
+        public static PieceType[] ShapeArray { get; set; } = [new(new int[,] { { 0, 0, 0, 0, 0 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 0, 0, 0, 0, 0 } }),
+            new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 1, 0, 0, 0 }, { 0, 1, 1, 1, 0 }, { 0, 0, 0, 0, 0 } }),
+            new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 0, 1, 1, 0 }, { 0, 1, 1, 0, 0 }, { 0, 0, 0, 0, 0 } }),
+            new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 1, 1, 0, 0 }, { 0, 0, 1, 1, 0 }, { 0, 0, 0, 0, 0 } }),
+            new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 1, 1, 1, 0 }, { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 } }),
+            new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 0, 0, 1, 0 }, { 0, 1, 1, 1, 0 }, { 0, 0, 0, 0, 0 } }),
+            new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 1, 1, 1, 0 }, { 0, 0, 1, 0, 0 }, { 0, 0, 0, 0, 0 } }),
+            new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 1, 1, 0, 0 }, { 0, 1, 1, 0, 0 }, { 0, 1, 1, 0, 0 }, { 0, 0, 0, 0, 0 } }),
+            new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 1, 1, 1, 1 }, { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 } }),
+            new(new int[,] { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 0, 1, 0, 0 }, { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 } })];
+        public static System.Windows.Forms.Timer Timer { get; set; } = new();
+        public static System.Windows.Forms.Timer AnimTimer { get; set; } = new();
+        public static Panel BackScreen { get; set; } = new() { BackColor = Color.FromArgb(32, 0, 0) };
+        public static PictureBox ScreenArea { get; set; } = new() { SizeMode = PictureBoxSizeMode.Normal };
+        public static Bitmap ScreenPic { get; set; } = new(Screen.GetBounds(new Point(1, 1)).Width, Screen.GetBounds(new Point(1, 1)).Height);
+        public static PictureBox HelpArea { get; set; } = new() { SizeMode = PictureBoxSizeMode.Normal };
+        public static Bitmap HelpPic { get; set; } = new(1920, 1080);
+        public static PictureBox InfoArea { get; set; } = new() { SizeMode = PictureBoxSizeMode.Normal };
+        public static Bitmap InfoPic { get; set; } = new(200, 1080);
+        public static PictureBox StatusArea { get; set; } = new() { SizeMode = PictureBoxSizeMode.Normal };
+        public static Bitmap StatusPic { get; set; } = new(1920, 100);
+        public static Font MyFont { get; set; } = new("Arial", 15);
+        public static int AnimSpot { get; set; } = 0;
+        public static int AnimLine { get; set; } = 0;
+        public static bool DoSounds { get; set; } = true;
+        public static string AppSource { get; set; } = "WinTetris.Resources.";
+        public static string[] SoundFile { get; set; } = ["applause_y", "bowling", "cheering"];
+        public static string FileExtension { get; set; } = ".wav";
+        public static Random Rand { get; set; } = new();
     }
 }

@@ -8,4 +8,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Remove="Resources\applause_y.wav" />
+    <None Remove="Resources\bowling.wav" />
+    <None Remove="Resources\cheering.wav" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\applause_y.wav" />
+    <EmbeddedResource Include="Resources\bowling.wav" />
+    <EmbeddedResource Include="Resources\cheering.wav" />
+  </ItemGroup>
+
 </Project>
