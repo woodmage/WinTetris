@@ -26,4 +26,5 @@ This game is copyright 2024 by John Worthington
   and uses the General Public License (version 3)
 Feel free to use any part or all of this program for your own things.  While it is not necessary, I would appreciate knowing about anything you make of it.  You may contact me at woodmage@gmail.com and I would appreciate it if the title of your message included the name WinTetris.
 
+If you want to see more games like this, consider donating $1 for a cup of coffee: [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/E1E3UW3O1)
 Anyway, please enjoy!
